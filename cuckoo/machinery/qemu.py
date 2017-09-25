@@ -7,6 +7,7 @@ import time
 import logging
 import subprocess
 import os.path
+import shlex
 
 from cuckoo.common.abstracts import Machinery
 from cuckoo.common.config import config
@@ -22,7 +23,7 @@ log = logging.getLogger(__name__)
 #  -> for now, just modify this to your needs
 QEMU_ARGS = {
     "default": {
-        "cmdline": ["qemu-system-x86_64", "-display", "none"],
+        "cmdline": ["qemu-system-x86_64"], # "-display", "none"],
         "params": {
             "memory": "512M",
             "mac": "52:54:00:12:34:56",
@@ -83,9 +84,10 @@ QEMU_ARGS = {
     },
     "x64": {
         "cmdline": [
-            "qemu-system-x86_64", "-display", "none", "-m", "{memory}",
+            "qemu-system-x86_64", "-m", "{memory}", # "-display", "none",
             "-hda", "{snapshot_path}",
-            "-net", "tap,ifname=tap_{vmname},script=no,downscript=no", "-net", "nic,macaddr={mac}",  # this by default needs /etc/qemu-ifup to add the tap to the bridge, slightly awkward
+            "-netdev", "tap,ifname=tap_{vmname},script=no,downscript=no,id=net1",
+            "-device", "rtl8139,netdev=net1,mac={mac}",
         ],
         "params": {
             "memory": "1024M",
@@ -95,7 +97,8 @@ QEMU_ARGS = {
         "cmdline": [
             "qemu-system-i386", "-display", "none", "-m", "{memory}",
             "-hda", "{snapshot_path}",
-            "-net", "tap,ifname=tap_{vmname},script=no,downscript=no", "-net", "nic,macaddr={mac}",  # this by default needs /etc/qemu-ifup to add the tap to the bridge, slightly awkward
+            "-netdev", "tap,ifname=tap_{vmname},script=no,downscript=no,id=net1",
+            "-device", "rtl8139,netdev=net1,mac={mac}",
         ],
         "params": {
             "memory": "1024M",
@@ -196,6 +199,9 @@ class QEMU(Machinery):
         if vm_options.enable_kvm:
             final_cmdline.append("-enable-kvm")
 
+        if vm_options.additional_params:
+            final_cmdline.append(shlex.split(vm_options.additional_params))
+
         log.debug("Executing QEMU %r", final_cmdline)
 
         try:
@@ -217,7 +223,7 @@ class QEMU(Machinery):
             raise CuckooMachineError("Trying to stop an already stopped vm %s" % label)
 
         proc = self.state.get(vm_info.name, None)
-        proc.kill()
+        proc.terminate()
 
         stop_me = 0
         while proc.poll() is None:
@@ -226,7 +232,7 @@ class QEMU(Machinery):
                 stop_me += 1
             else:
                 log.debug("Stopping vm %s timeouted. Killing" % label)
-                proc.terminate()
+                proc.kill()
                 time.sleep(1)
 
         # if proc.returncode != 0 and stop_me < config("cuckoo:timeouts:vm_state"):
