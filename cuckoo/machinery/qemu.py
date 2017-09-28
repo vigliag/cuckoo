@@ -23,7 +23,8 @@ log = logging.getLogger(__name__)
 #  -> for now, just modify this to your needs
 QEMU_ARGS = {
     "default": {
-        "cmdline": ["qemu-system-x86_64"], # "-display", "none"],
+        "qemu": "qemu-system-x86_64",
+        "cmdline": [], #["-display", "none"],
         "params": {
             "memory": "512M",
             "mac": "52:54:00:12:34:56",
@@ -31,8 +32,9 @@ QEMU_ARGS = {
         },
     },
     "mipsel": {
+        "qemu": "qemu-system-mipsel",
         "cmdline": [
-            "qemu-system-mipsel", "-display", "none", "-M", "malta", "-m", "{memory}",
+            "-display", "none", "-M", "malta", "-m", "{memory}",
             "-kernel", "{kernel}",
             "-hda", "{snapshot_path}",
             "-append", "root=/dev/sda1 console=tty0",
@@ -44,8 +46,9 @@ QEMU_ARGS = {
         }
     },
     "mips": {
+        "qemu": "qemu-system-mips",
         "cmdline": [
-            "qemu-system-mips", "-display", "none", "-M", "malta", "-m", "{memory}",
+            "-display", "none", "-M", "malta", "-m", "{memory}",
             "-kernel", "{kernel}",
             "-hda", "{snapshot_path}",
             "-append", "root=/dev/sda1 console=tty0",
@@ -57,8 +60,9 @@ QEMU_ARGS = {
         }
     },
     "armwrt": {
+        "qemu": "qemu-system-arm",
         "cmdline": [
-            "qemu-system-arm", "-display", "none", "-M", "realview-eb-mpcore", "-m", "{memory}",
+            "-display", "none", "-M", "realview-eb-mpcore", "-m", "{memory}",
             "-kernel", "{kernel}",
             "-drive", "if=sd,cache=unsafe,file={snapshot_path}",
             "-append", "console=ttyAMA0 root=/dev/mmcblk0 rootwait",
@@ -69,8 +73,9 @@ QEMU_ARGS = {
         }
     },
     "arm": {
+        "qemu": "qemu-system-arm", 
         "cmdline": [
-            "qemu-system-arm", "-display", "none", "-M", "versatilepb", "-m", "{memory}",
+            "-display", "none", "-M", "versatilepb", "-m", "{memory}",
             "-kernel", "{kernel}", "-initrd", "{initrd}",
             "-hda", "{snapshot_path}",
             "-append", "root=/dev/sda1",
@@ -83,8 +88,9 @@ QEMU_ARGS = {
         }
     },
     "x64": {
+        "qemu": "qemu-system-x86_64",
         "cmdline": [
-            "qemu-system-x86_64", "-m", "{memory}", # "-display", "none",
+            "-m", "{memory}", # "-display", "none",
             "-hda", "{snapshot_path}",
             "-netdev", "tap,ifname=tap_{vmname},script=no,downscript=no,id=net1",
             "-device", "rtl8139,netdev=net1,mac={mac}",
@@ -94,8 +100,9 @@ QEMU_ARGS = {
         }
     },
     "x86": {
+        "qemu": "qemu-system-i386",
         "cmdline": [
-            "qemu-system-i386", "-display", "none", "-m", "{memory}",
+            "-display", "none", "-m", "{memory}",
             "-hda", "{snapshot_path}",
             "-netdev", "tap,ifname=tap_{vmname},script=no,downscript=no,id=net1",
             "-device", "rtl8139,netdev=net1,mac={mac}",
@@ -145,7 +152,7 @@ class QEMU(Machinery):
         vm_info = self.db.view_machine_by_label(label)
         vm_options = getattr(self.options, vm_info.name)
 
-        if vm_options.snapshot:
+        if vm_options.snapshot or vm_options.no_snapshot:
             snapshot_path = vm_options.image
         else:
             snapshot_path = os.path.join(
@@ -167,12 +174,14 @@ class QEMU(Machinery):
                     raise OSError(err)
             except OSError as e:
                 raise CuckooMachineError(
-                    "QEMU failed starting the machine: %s" % e
+                    "QEMU failed creating the machine image: %s" % e
                 )
 
         vm_arch = getattr(vm_options, "arch", "default")
         arch_config = dict(QEMU_ARGS[vm_arch])
-        cmdline = arch_config["cmdline"]
+        qemu = os.path.join(self.qemu_dir, arch_config["qemu"])
+        cmdline = [qemu] + arch_config["cmdline"]
+
         params = dict(QEMU_ARGS["default"]["params"])
         params.update(QEMU_ARGS[vm_arch]["params"])
 
@@ -184,7 +193,7 @@ class QEMU(Machinery):
 
         # allow some overrides from the vm specific options
         # also do another round of parameter formatting
-        for var in ["mac", "kernel", "initrd"]:
+        for var in ["mac", "kernel", "initrd", "memory"]:
             val = getattr(vm_options, var, params.get(var, None))
             if not val:
                 continue
@@ -200,7 +209,7 @@ class QEMU(Machinery):
             final_cmdline.append("-enable-kvm")
 
         if vm_options.additional_params:
-            final_cmdline.append(shlex.split(vm_options.additional_params))
+            final_cmdline += shlex.split(vm_options.additional_params)
 
         log.debug("Executing QEMU %r", final_cmdline)
 
