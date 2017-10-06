@@ -193,7 +193,9 @@ class MonitorProcessLog(list):
 
                 # Get rid of the unique hash, this is only relevant
                 # for automation.
-                del event["uniqhash"]
+
+                # vigliag re-enable uniqhash, to be used as identifier to link cuckoo and panda
+                # del event["uniqhash"]
 
                 # If available, call a modifier function.
                 apiname = "_api_%s" % event["api"]
