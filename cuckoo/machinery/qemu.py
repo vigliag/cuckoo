@@ -102,7 +102,7 @@ QEMU_ARGS = {
     "x86": {
         "qemu": "qemu-system-i386",
         "cmdline": [
-            "-display", "none", "-m", "{memory}",
+            "-m", "{memory}", # "-display", "none",
             "-hda", "{snapshot_path}",
             "-netdev", "tap,ifname=tap_{vmname},script=no,downscript=no,id=net1",
             "-device", "rtl8139,netdev=net1,mac={mac}",
@@ -211,10 +211,10 @@ class QEMU(Machinery):
         if vm_options.additional_params:
             final_cmdline += shlex.split(vm_options.additional_params)
 
-        log.debug("Executing QEMU %r", final_cmdline)
+        log.info("Executing QEMU %r", final_cmdline)
 
         try:
-            proc = subprocess.Popen(final_cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(final_cmdline)#, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.state[vm_info.name] = proc
         except OSError as e:
             raise CuckooMachineError("QEMU failed starting the machine: %s" % e)
