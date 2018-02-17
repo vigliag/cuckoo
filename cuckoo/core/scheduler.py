@@ -590,6 +590,9 @@ class AnalysisManager(threading.Thread):
                 vmname=self.machine.name
             )
 
+            #vigliag
+            print "STOPPING MACHINE"
+            
             try:
                 # Stop the analysis machine.
                 machinery.stop(self.machine.label)

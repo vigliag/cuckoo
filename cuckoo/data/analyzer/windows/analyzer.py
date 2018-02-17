@@ -282,6 +282,7 @@ class CommandPipeHandler(object):
 
     def _handle_process(self, data):
         """Request for injection into a process."""
+        log.info("PROCESS1")
         # Parse the process identifier.
         if not data or not data.isdigit():
             log.warning("Received PROCESS command from monitor with an "
@@ -292,6 +293,7 @@ class CommandPipeHandler(object):
 
     def _handle_process2(self, data):
         """Request for injection into a process using APC."""
+        log.info("PROCESS2")
         # Parse the process and thread identifier.
         if not data or data.count(",") != 2:
             log.warning("Received PROCESS2 command from monitor with an "
@@ -523,15 +525,15 @@ class Analyzer(object):
         self.files.dump_files()
 
         # Hell yeah.
-        log.info("Analysis completed.")
+        log.info("Analysis completed. YAY")
 
     def run(self):
         """Run analysis.
         @return: operation status.
         """
+        raise "hey"
         self.prepare()
         self.path = os.getcwd()
-
         log.debug("Starting analyzer from: %s", self.path)
         log.debug("Pipe server name: %s", self.config.pipe)
         log.debug("Log pipe server name: %s", self.config.logpipe)
@@ -756,7 +758,7 @@ class Analyzer(object):
                 log.warning("Cannot terminate auxiliary module %s: %s",
                             aux.__class__.__name__, e)
 
-        if self.config.terminate_processes:
+        if True: #self.config.terminate_processes:
             # Try to terminate remaining active processes.
             log.info("Terminating remaining processes before shutdown.")
 
@@ -764,8 +766,11 @@ class Analyzer(object):
                 proc = Process(pid=pid)
                 if proc.is_alive():
                     try:
+                        #vigliag
+                        proc.dump_memory()
                         proc.terminate()
                     except:
+                        log.info("unable to dump or terminate")
                         continue
 
         # Run the finish callback of every available Auxiliary module.

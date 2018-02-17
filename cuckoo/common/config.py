@@ -777,6 +777,9 @@ class Config(object):
                 "hash_filename": Boolean(False),
                 "hash_url": Boolean(False),
             },
+            "pandarecording": {
+                "enabled": Boolean(True),
+            },
         },
         "routing": {
             "routing": {
